@@ -18,7 +18,8 @@ export interface UserProfile {
     userType: 'farmer' | 'expert' | 'ngo' | 'admin';
     specialization?: string;
     organization?: string;
-    email?: string; // Add email for admin login
+    email?: string;
+    status?: 'active' | 'suspended'; // Added status
 }
 
 // In-memory/localStorage cache for user profiles to support simulation
@@ -48,6 +49,7 @@ if (typeof window !== 'undefined') {
             language: 'English',
             userType: 'admin',
             email: 'admin@example.com',
+            status: 'active',
         };
         localStorage.setItem('userProfiles', JSON.stringify(userProfiles));
     }
@@ -56,6 +58,7 @@ if (typeof window !== 'undefined') {
 const saveProfilesToLocalStorage = () => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('userProfiles', JSON.stringify(userProfiles));
+        window.dispatchEvent(new Event('storage')); // Notify other components of changes
     }
 };
 
@@ -66,7 +69,7 @@ const saveProfilesToLocalStorage = () => {
  * @param profileData The user's profile data.
  */
 export const setUserProfile = async (userId: string, profileData: UserProfile): Promise<void> => {
-    userProfiles[userId] = profileData;
+    userProfiles[userId] = { ...profileData, status: profileData.status || 'active' };
     saveProfilesToLocalStorage();
     return Promise.resolve();
 };
@@ -78,9 +81,10 @@ export const setUserProfile = async (userId: string, profileData: UserProfile): 
  * @returns The user's profile data, or null if not found.
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    const profile = userProfiles[userId];
+    const profile = Object.values(userProfiles).find(p => p.farmerId === userId || p.email === userId);
     return Promise.resolve(profile || null);
 };
+
 
 /**
  * Retrieves all user profiles.
@@ -93,33 +97,38 @@ export const getUsers = async (): Promise<UserProfile[]> => {
 /**
  * Updates a user's profile.
  * Simulates Firestore 'update' but uses localStorage.
- * @param userId The user's simulated authentication ID (e.g., sim-9876543210).
+ * @param farmerId The user's farmerId.
  * @param updates The fields to update.
  */
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<void> => {
-    if (userProfiles[userId]) {
-        userProfiles[userId] = { ...userProfiles[userId], ...updates };
+export const updateUserProfile = async (farmerId: string, updates: Partial<UserProfile>): Promise<void> => {
+    // Find the key of the user to update
+    const userKey = Object.keys(userProfiles).find(key => userProfiles[key].farmerId === farmerId);
+
+    if (userKey) {
+        userProfiles[userKey] = { ...userProfiles[userKey], ...updates };
         saveProfilesToLocalStorage();
         return Promise.resolve();
     } else {
-        // In a real app, you might throw an error or handle this case differently.
-        // For simulation, we can just create it if it doesn't exist.
-        const newProfileData: UserProfile = {
-             farmerId: userId,
-             name: '',
-             phone: '',
-             avatar: '',
-             farmSize: '',
-             city: '',
-             state: '',
-             annualIncome: '',
-             gender: '',
-             age: '',
-             dob: '',
-             language: 'English' as const,
-             userType: 'farmer' as const,
-             ...updates,
-        };
-        await setUserProfile(userId, newProfileData);
+        return Promise.reject(new Error("User not found"));
+    }
+};
+
+/**
+ * Deletes a user's profile from localStorage.
+ * @param farmerId The farmerId of the user to delete.
+ */
+export const deleteUserProfile = async (farmerId: string): Promise<void> => {
+    const userKey = Object.keys(userProfiles).find(key => userProfiles[key].farmerId === farmerId);
+    
+    if (userKey) {
+        // Prevent admin from being deleted
+        if (userProfiles[userKey].userType === 'admin') {
+            return Promise.reject(new Error("Cannot delete admin user."));
+        }
+        delete userProfiles[userKey];
+        saveProfilesToLocalStorage();
+        return Promise.resolve();
+    } else {
+        return Promise.reject(new Error("User not found"));
     }
 };
