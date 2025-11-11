@@ -28,9 +28,11 @@ if (typeof window !== 'undefined') {
     const storedProfiles = localStorage.getItem('userProfiles');
     if (storedProfiles) {
         userProfiles = JSON.parse(storedProfiles);
-    } else {
-        // Pre-seed an admin user if no profiles exist
-        const adminId = 'admin@example.com';
+    } 
+    
+    // Always ensure the admin user exists with the correct key
+    const adminId = 'admin@example.com';
+    if (!userProfiles[adminId]) {
         userProfiles[adminId] = {
             farmerId: 'AD-0000-0001',
             name: 'Admin User',

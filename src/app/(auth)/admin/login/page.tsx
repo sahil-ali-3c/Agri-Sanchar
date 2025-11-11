@@ -47,6 +47,7 @@ export default function AdminLoginPage() {
       }
 
       try {
+        // Use the email directly as the ID for the lookup
         const userProfile = await getUserProfile(email);
         
         if (!userProfile || userProfile.userType !== 'admin') {
