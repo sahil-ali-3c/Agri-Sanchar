@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
       }
 
       try {
-        const mockUserId = `sim-${email}`;
+        const mockUserId = `sim-admin`; // Corrected User ID
         const userProfile = await getUserProfile(mockUserId);
         
         if (!userProfile || userProfile.userType !== 'admin') {
