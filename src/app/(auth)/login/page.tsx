@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,12 +40,9 @@ const addWelcomeNotification = (name: string, lang: 'English' | 'Hindi') => {
     }
 };
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
+export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -104,7 +101,7 @@ export default function LoginPage({
               description: t.login.welcomeBack(userProfile.name),
           });
 
-          const redirectUrl = searchParams.redirect;
+          const redirectUrl = searchParams.get('redirect');
 
           if (redirectUrl && typeof redirectUrl === 'string') {
               router.push(redirectUrl);

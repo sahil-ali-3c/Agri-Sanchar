@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,12 +19,9 @@ type UserProfile = {
     avatar: string;
 };
 
-export default function JoinGroupPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
+export default function JoinGroupPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { t } = useTranslation();
 
@@ -34,7 +31,7 @@ export default function JoinGroupPage({
     const [isJoining, setIsJoining] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const groupId = searchParams.group;
+    const groupId = searchParams.get('group');
 
     useEffect(() => {
         const profile = localStorage.getItem("userProfile");
