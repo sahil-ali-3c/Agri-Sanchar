@@ -3,13 +3,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AreaChart, BarChart, Bell, FileText, Users, TrendingUp } from "lucide-react";
+import { AreaChart, Bell, FileText, Users, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useEffect, useState } from "react";
 import { getUsers, UserProfile } from "@/lib/firebase/users";
 import { getStoredPosts } from "@/lib/firebase/posts";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboardPage() {
     const [stats, setStats] = useState({ users: 0, posts: 0 });
