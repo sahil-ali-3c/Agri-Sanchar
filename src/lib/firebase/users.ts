@@ -25,16 +25,15 @@ export interface UserProfile {
 
 
 /**
- * Creates or overwrites a user's profile in Firestore.
- * @param userId The user's authentication ID from Firebase Auth.
+ * Creates or overwrites a user's profile.
+ * Simulates Firestore 'set' but uses localStorage for this prototyping environment.
+ * @param phone The user's phone number, used as the key.
  * @param profileData The user's profile data.
  */
-export const setUserProfile = async (userId: string, profileData: UserProfile): Promise<void> => {
-    // For simulation, we are using a local cache. In a real app, this would be a direct Firestore call.
-    // The `userId` here is the simulated one like 'sim-9876543210' or the admin's email.
+export const setUserProfile = async (phone: string, profileData: UserProfile): Promise<void> => {
     if (typeof window !== 'undefined') {
         const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
-        profiles[userId] = profileData;
+        profiles[phone] = profileData;
         localStorage.setItem('userProfiles', JSON.stringify(profiles));
         window.dispatchEvent(new Event('storage'));
     }
@@ -42,18 +41,20 @@ export const setUserProfile = async (userId: string, profileData: UserProfile): 
 };
 
 /**
- * Retrieves a user's profile from Firestore.
- * @param userId The user's authentication ID.
+ * Retrieves a user's profile by phone number.
+ * Simulates Firestore 'get' but uses localStorage.
+ * @param phone The user's phone number.
  * @returns The user's profile data, or null if not found.
  */
-export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+export const getUserProfile = async (phone: string): Promise<UserProfile | null> => {
      if (typeof window !== 'undefined') {
         const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
-        if (profiles[userId]) {
-            return Promise.resolve(profiles[userId]);
+        // Look up directly by phone number key
+        if (profiles[phone]) {
+            return Promise.resolve(profiles[phone]);
         }
         // Also check by email for admin login case
-        const profile = Object.values(profiles).find((p: any) => p.email === userId);
+        const profile = Object.values(profiles).find((p: any) => p.email === phone);
         return Promise.resolve(profile as UserProfile || null);
     }
     return Promise.resolve(null);
@@ -84,6 +85,11 @@ export const updateUserProfile = async (farmerId: string, updates: Partial<UserP
         if (userKey) {
             profiles[userKey] = { ...profiles[userKey], ...updates };
             localStorage.setItem('userProfiles', JSON.stringify(profiles));
+            // Also update the currently logged in user's profile if it matches
+            const currentUserProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+            if (currentUserProfile.farmerId === farmerId) {
+                localStorage.setItem('userProfile', JSON.stringify(profiles[userKey]));
+            }
             window.dispatchEvent(new Event('storage'));
             return Promise.resolve();
         } else {
@@ -114,3 +120,31 @@ export const deleteUserProfile = async (farmerId: string): Promise<void> => {
         }
     }
 };
+
+// Initialize admin user if not present
+if (typeof window !== 'undefined') {
+    const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+    const adminEmail = 'admin@example.com';
+    const adminExists = Object.values(profiles).some((p: any) => p.email === adminEmail);
+
+    if (!adminExists) {
+        profiles[adminEmail] = {
+            farmerId: 'AD-0000-0001',
+            name: 'Admin User',
+            phone: '+910000000000',
+            avatar: `https://picsum.photos/seed/admin/100/100`,
+            farmSize: '',
+            city: 'Delhi',
+            state: 'Delhi',
+            annualIncome: '',
+            gender: '',
+            age: '',
+            dob: '',
+            language: 'English',
+            userType: 'admin',
+            email: 'admin@example.com',
+            status: 'active',
+        };
+        localStorage.setItem('userProfiles', JSON.stringify(profiles));
+    }
+}

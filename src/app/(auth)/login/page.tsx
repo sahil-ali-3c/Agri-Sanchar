@@ -75,9 +75,7 @@ export default function LoginPage() {
     setTimeout(async () => {
       if (otp === "123456") {
         try {
-          // Use a simulated user ID based on phone number for lookup
-          const mockUserId = `sim-${phone}`;
-          const userProfile = await getUserProfile(mockUserId);
+          const userProfile = await getUserProfile(phone);
           
           if (!userProfile) {
               toast({
@@ -103,7 +101,7 @@ export default function LoginPage() {
 
           const redirectUrl = searchParams.get('redirect');
 
-          if (redirectUrl && typeof redirectUrl === 'string') {
+          if (redirectUrl) {
               router.push(redirectUrl);
           } else if (userProfile.state && userProfile.city) {
               router.push("/dashboard");

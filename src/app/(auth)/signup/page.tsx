@@ -87,7 +87,6 @@ export default function SignupPage() {
         if (otp === "123456") {
             try {
                 const farmerId = generateId();
-                const mockUserId = `sim-${phone}`; // Simulated ID for localStorage key
 
                 const userProfile: UserProfile = {
                     farmerId: farmerId,
@@ -105,7 +104,7 @@ export default function SignupPage() {
                     userType: 'farmer',
                 };
                 
-                await setUserProfile(mockUserId, userProfile);
+                await setUserProfile(phone, userProfile);
                 localStorage.setItem("userProfile", JSON.stringify(userProfile));
                 
                 addWelcomeNotification(userProfile.name, language);
