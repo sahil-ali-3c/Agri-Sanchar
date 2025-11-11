@@ -1,0 +1,248 @@
+{
+  "entities": {
+    "FarmerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FarmerProfile",
+      "type": "object",
+      "description": "Represents a farmer's profile with personal and agricultural information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FarmerProfile entity."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Farmer's phone number used for login and communication."
+        },
+        "name": {
+          "type": "string",
+          "description": "Farmer's full name."
+        },
+        "farmSize": {
+          "type": "number",
+          "description": "Size of the farmer's farm in acres."
+        },
+        "city": {
+          "type": "string",
+          "description": "City where the farmer's farm is located."
+        },
+        "state": {
+          "type": "string",
+          "description": "State where the farmer's farm is located."
+        },
+        "annualIncome": {
+          "type": "number",
+          "description": "Farmer's annual income."
+        },
+        "languagePreference": {
+          "type": "string",
+          "description": "The user's preferred language (e.g., 'en' for English, 'hi' for Hindi')."
+        }
+      },
+      "required": [
+        "id",
+        "phoneNumber",
+        "name",
+        "farmSize",
+        "city",
+        "state",
+        "annualIncome",
+        "languagePreference"
+      ]
+    },
+    "OtpVerification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OtpVerification",
+      "type": "object",
+      "description": "Represents an OTP verification attempt for a phone number.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OTP verification record."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number for which the OTP was sent."
+        },
+        "otp": {
+          "type": "string",
+          "description": "The One-Time Password (OTP) sent to the user."
+        },
+        "expirationTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the OTP expires.",
+          "format": "date-time"
+        },
+        "isVerified": {
+          "type": "boolean",
+          "description": "Indicates whether the OTP has been successfully verified."
+        }
+      },
+      "required": [
+        "id",
+        "phoneNumber",
+        "otp",
+        "expirationTime",
+        "isVerified"
+      ]
+    },
+    "CommunityPost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CommunityPost",
+      "type": "object",
+      "description": "Represents a post in the community section where farmers interact.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CommunityPost entity."
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Reference to FarmerProfile. (Relationship: FarmerProfile 1:N CommunityPost)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the post."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp indicating when the post was created.",
+          "format": "date-time"
+        },
+        "likeIds": {
+          "type": "array",
+          "description": "List of user Ids who liked this post.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "farmerId",
+        "content",
+        "timestamp"
+      ]
+    },
+    "WeatherForecast": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WeatherForecast",
+      "type": "object",
+      "description": "Represents weather forecast data for a specific location.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WeatherForecast entry."
+        },
+        "city": {
+          "type": "string",
+          "description": "City for which the weather forecast is provided."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date for the weather forecast.",
+          "format": "date-time"
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Temperature in Celsius."
+        },
+        "condition": {
+          "type": "string",
+          "description": "Weather condition (e.g., Sunny, Rainy)."
+        },
+        "humidity": {
+          "type": "number",
+          "description": "Humidity percentage."
+        }
+      },
+      "required": [
+        "id",
+        "city",
+        "date",
+        "temperature",
+        "condition",
+        "humidity"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/farmer_profiles/{farmerId}",
+        "definition": {
+          "entityName": "FarmerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/FarmerProfile"
+          },
+          "description": "Stores farmer profile information.  The document ID matches the Firebase Auth UID. This enforces path-based ownership. (Relationship: User 1:1 FarmerProfile)",
+          "params": [
+            {
+              "name": "farmerId",
+              "description": "The Firebase Auth UID of the farmer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/otp_verifications/{otpId}",
+        "definition": {
+          "entityName": "OtpVerification",
+          "schema": {
+            "$ref": "#/backend/entities/OtpVerification"
+          },
+          "description": "Stores OTP verification attempts.  Security rules here will focus on time-based access and ensuring OTPs can only be used once.",
+          "params": [
+            {
+              "name": "otpId",
+              "description": "Unique identifier for the OTP verification record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/community_posts/{postId}",
+        "definition": {
+          "entityName": "CommunityPost",
+          "schema": {
+            "$ref": "#/backend/entities/CommunityPost"
+          },
+          "description": "Stores community posts. Includes the `farmerId` of the author to enable ownership-based security rules. Anyone can `list` posts, but only the author or an admin can `update` or `delete`.",
+          "params": [
+            {
+              "name": "postId",
+              "description": "Unique identifier for the community post."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/weather_forecasts/{city}_{date}",
+        "definition": {
+          "entityName": "WeatherForecast",
+          "schema": {
+            "$ref": "#/backend/entities/WeatherForecast"
+          },
+          "description": "Stores weather forecasts. Includes the city name to ensure that forecast can be queried by city. Data is globally readable.",
+          "params": [
+            {
+              "name": "city",
+              "description": "City for which the weather forecast is provided."
+            },
+            {
+              "name": "date",
+              "description": "Date for the weather forecast (YYYY-MM-DD)."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Agri-Sanchar app's features, focusing on user authentication, farmer profiles, community interaction, and weather information. It prioritizes Authorization Independence by avoiding hierarchical authorization dependencies and denormalizing data where necessary. \n\n*   `/farmer_profiles/{farmerId}`: Stores farmer profile information. Uses path-based ownership for private user data. The `farmerId` in this collection matches the `uid` from Firebase Authentication, ensuring that only the authenticated user can access their profile. This supports simple, robust security rules based on `request.auth.uid == farmerId`.\n*   `/otp_verifications/{otpId}`: Stores OTP verification attempts. Security rules here will focus on time-based access and ensuring OTPs can only be used once.\n*   `/community_posts/{postId}`: Stores community posts. Each post includes the `farmerId` of the author, enforcing ownership. Anyone can `list` posts, but only the author or an admin can `update` or `delete`.  The `likeIds` array is used to track likes.  While the content of the posts are not moderated, an admin role could be added in the future to allow editing and deleting of posts.\n*   `/weather_forecasts/{city}_{date}`: Stores weather forecasts. Includes the city name to ensure that forecast can be queried by city.  Data is globally readable.\n\n**Authorization Independence (CRITICAL):** The structure enforces Authorization Independence by ensuring that access control for each document can be determined independently without needing to `get()` parent documents. For example, community posts include the `farmerId`, so authorization rules can check if the current user is the owner (`request.auth.uid == resource.data.farmerId`) without needing to retrieve the user's profile.\n\n**QAPs (Rules are not Filters):** The structure supports secure list operations (QAPs) by:\n\n*   Segregation: Using separate collections for different data types with different security requirements (e.g., farmer profiles vs. community posts).\n*   Membership Maps: While not used explicitly in this structure, the `likeIds` array in community posts serves a similar purpose, enabling efficient tracking of who liked a post, allowing users to only like posts once."
+  }
+}

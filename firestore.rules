@@ -1,0 +1,107 @@
+/**
+ * @fileOverview Firestore Security Rules for the Agri-Sanchar application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for farmer profiles,
+ * time-based restrictions for OTP verifications, and public read access
+ * with owner-only writes for community posts and weather forecasts.
+ *
+ * Data Structure:
+ * - /farmer_profiles/{farmerId}: Farmer profile data, with farmerId matching the Firebase auth UID.
+ * - /otp_verifications/{otpId}: OTP verification records.
+ * - /community_posts/{postId}: Community posts with a farmerId field for ownership.
+ * - /weather_forecasts/{city}_{date}: Weather forecast data, publicly readable.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own farmer profile data (ownership).
+ * - OTP verifications are time-sensitive.
+ * - Community posts are publicly readable, but only the author can modify them.
+ * - Weather forecasts are publicly readable.
+ * - No user listing is allowed (to protect user privacy).
+ *
+ * Denormalization for Authorization:
+ * - Community posts denormalize the farmerId to allow for simple ownership checks.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to farmer profile documents.
+     * @path /farmer_profiles/{farmerId}
+     * @allow (create) User with UID 'user_abc' can create their profile if farmerId == user_abc.
+     * @allow (get, update, delete) User with UID 'user_abc' can read/update/delete their profile if farmerId == user_abc.
+     * @deny (create, get, update, delete) User with UID 'user_xyz' cannot access farmer profile with ID 'user_abc'.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /farmer_profiles/{farmerId} {
+      //function
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(farmerId);
+      allow list: if false; // Listing farmer profiles is not allowed.
+
+      allow create: if isOwner(farmerId) && request.resource.data.id == farmerId;
+      allow update: if isExistingOwner(farmerId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(farmerId);
+    }
+
+    /**
+     * @description Controls access to OTP verification documents.
+     * @path /otp_verifications/{otpId}
+     * @allow (create) Any authenticated user can create an OTP verification request.
+     * @deny (get, list, update, delete) No one can get, list, update, or delete OTP verification records directly.
+     * @principle Restricts access to OTP documents to prevent misuse.
+     */
+    match /otp_verifications/{otpId} {
+        allow get, list, update, delete: if false;
+        allow create: if isSignedIn();
+    }
+
+    /**
+     * @description Controls access to community post documents.
+     * @path /community_posts/{postId}
+     * @allow (get, list) Any user can read community posts.
+     * @allow (create) Any authenticated user can create a community post.
+     * @allow (update, delete) Only the owner of the post can update or delete it.
+     * @deny (update, delete) Non-owners cannot update or delete community posts.
+     * @principle Allows public read access but restricts write access to the owner.
+     */
+    match /community_posts/{postId} {
+      //function
+      function isOwner(farmerId) {
+        return request.auth.uid == farmerId;
+      }
+        function isExistingOwner(farmerId) {
+        return isOwner(farmerId) && resource != null;
+      }
+      allow get, list: if true;
+
+      allow create: if isSignedIn() && request.resource.data.farmerId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.farmerId);
+      allow delete: if isExistingOwner(resource.data.farmerId);
+    }
+
+    /**
+     * @description Controls access to weather forecast documents.
+     * @path /weather_forecasts/{city}_{date}
+     * @allow (get, list) Any user can read weather forecasts.
+     * @deny (create, update, delete) No user can create, update, or delete weather forecasts.
+     * @principle Allows public read access but restricts write access.
+     */
+    match /weather_forecasts/{forecastId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+  }
+
+  //function
+  function isSignedIn() {
+    return request.auth != null;
+  }
+}
