@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
         userProfiles = JSON.parse(storedProfiles);
     } else {
         // Pre-seed an admin user if no profiles exist
-        const adminId = 'sim-admin@example.com';
+        const adminId = 'sim-admin';
         userProfiles[adminId] = {
             farmerId: 'AD-0000-0001',
             name: 'Admin User',
