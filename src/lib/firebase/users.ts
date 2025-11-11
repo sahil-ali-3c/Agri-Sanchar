@@ -30,8 +30,15 @@ export interface UserProfile {
  * @param profileData The user's profile data.
  */
 export const setUserProfile = async (userId: string, profileData: UserProfile): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    setDocumentNonBlocking(userDocRef, profileData, { merge: true });
+    // For simulation, we are using a local cache. In a real app, this would be a direct Firestore call.
+    // The `userId` here is the simulated one like 'sim-9876543210' or the admin's email.
+    if (typeof window !== 'undefined') {
+        const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+        profiles[userId] = profileData;
+        localStorage.setItem('userProfiles', JSON.stringify(profiles));
+        window.dispatchEvent(new Event('storage'));
+    }
+    return Promise.resolve();
 };
 
 /**
@@ -40,12 +47,16 @@ export const setUserProfile = async (userId: string, profileData: UserProfile): 
  * @returns The user's profile data, or null if not found.
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    const userDocRef = doc(db, 'users', userId);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-        return docSnap.data() as UserProfile;
+     if (typeof window !== 'undefined') {
+        const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+        if (profiles[userId]) {
+            return Promise.resolve(profiles[userId]);
+        }
+        // Also check by email for admin login case
+        const profile = Object.values(profiles).find((p: any) => p.email === userId);
+        return Promise.resolve(profile as UserProfile || null);
     }
-    return null;
+    return Promise.resolve(null);
 };
 
 /**
@@ -53,38 +64,53 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
  * @returns An array of all user profiles.
  */
 export const getUsers = async (): Promise<UserProfile[]> => {
-    const usersCollectionRef = collection(db, 'users');
-    const querySnapshot = await getDocs(usersCollectionRef);
-    const users: UserProfile[] = [];
-    querySnapshot.forEach((doc) => {
-        // We need a unique identifier for each user in the admin panel,
-        // and the doc id is the auth uid which is perfect.
-        users.push({ ...(doc.data() as UserProfile), farmerId: doc.id });
-    });
-    return users;
+    if (typeof window !== 'undefined') {
+        const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+        return Promise.resolve(Object.values(profiles));
+    }
+    return Promise.resolve([]);
 };
 
 
 /**
  * Updates a user's profile in Firestore.
- * @param userId The user's auth ID.
+ * @param farmerId The user's unique farmerId.
  * @param updates The fields to update.
  */
-export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    updateDocumentNonBlocking(userDocRef, updates);
+export const updateUserProfile = async (farmerId: string, updates: Partial<UserProfile>): Promise<void> => {
+    if (typeof window !== 'undefined') {
+        const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+        const userKey = Object.keys(profiles).find(key => profiles[key].farmerId === farmerId);
+        if (userKey) {
+            profiles[userKey] = { ...profiles[userKey], ...updates };
+            localStorage.setItem('userProfiles', JSON.stringify(profiles));
+            window.dispatchEvent(new Event('storage'));
+            return Promise.resolve();
+        } else {
+            return Promise.reject(new Error("User not found"));
+        }
+    }
 };
 
 /**
  * Deletes a user's profile from Firestore.
- * @param userId The auth ID of the user to delete.
+ * @param farmerId The auth ID of the user to delete.
  */
-export const deleteUserProfile = async (userId: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    // In a real app, you might want to prevent deletion of certain users, e.g., admins.
-    const user = await getUserProfile(userId);
-    if (user?.userType === 'admin') {
-      throw new Error("Cannot delete admin user.");
+export const deleteUserProfile = async (farmerId: string): Promise<void> => {
+    if (typeof window !== 'undefined') {
+        const profiles = JSON.parse(localStorage.getItem('userProfiles') || '{}');
+        const userKey = Object.keys(profiles).find(key => profiles[key].farmerId === farmerId);
+        
+        if (userKey) {
+            if (profiles[userKey].userType === 'admin') {
+                return Promise.reject(new Error("Cannot delete admin user."));
+            }
+            delete profiles[userKey];
+            localStorage.setItem('userProfiles', JSON.stringify(profiles));
+            window.dispatchEvent(new Event('storage'));
+            return Promise.resolve();
+        } else {
+            return Promise.reject(new Error("User not found"));
+        }
     }
-    deleteDocumentNonBlocking(userDocRef);
 };

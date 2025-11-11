@@ -15,8 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             data-ai-hint="farm morning"
             />
             <div className="absolute inset-0 bg-black/50 -z-10" />
-
-        <div id="recaptcha-container"></div>
+            <div id="recaptcha-container"></div>
         <div className="mb-6 flex items-center gap-2 text-3xl font-bold text-white drop-shadow-lg">
             <Leaf className="h-8 w-8 text-white" />
             <h1 className="font-headline">Agri-Sanchar</h1>

@@ -18,9 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslation } from "@/hooks/use-translation";
 import { setUserProfile, type UserProfile } from "@/lib/firebase/users";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, UserCredential } from "firebase/auth";
-import { useAuth } from "@/firebase/provider";
-
 
 const addWelcomeNotification = (name: string, lang: 'English' | 'Hindi') => {
     const newNotification = {
@@ -49,13 +46,11 @@ const generateId = () => {
 export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const { t, language, setLanguage, isLoaded } = useTranslation();
 
   useEffect(() => {
@@ -69,89 +64,76 @@ export default function SignupPage() {
     }
   }, [isLoaded, setLanguage]);
 
-  useEffect(() => {
-    if (auth && !window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-      });
-    }
-  }, [auth]);
-
-  const handleSendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendOtp = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading || !auth) return;
+    if (loading) return;
     setLoading(true);
-
-    try {
-      const phoneNumber = `+91${phone}`;
-      const appVerifier = window.recaptchaVerifier;
-      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-      
-      setConfirmationResult(result);
+    setTimeout(() => {
       setOtpSent(true);
       toast({
         title: t.signup.otpSentTitle,
-        description: "A real OTP has been sent to your phone.",
+        description: t.signup.otpSentDesc,
       });
-    } catch (error) {
-        console.error("Error sending OTP:", error);
-        toast({
-            variant: "destructive",
-            title: "OTP Send Failed",
-            description: "Could not send OTP. The phone number might already be in use or invalid.",
-        });
-    } finally {
-        setLoading(false);
-    }
+      setLoading(false);
+    }, 1000);
   };
 
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading || !confirmationResult) return;
+    if (loading) return;
     setLoading(true);
 
-    try {
-      const credential: UserCredential = await confirmationResult.confirm(otp);
-      const user = credential.user;
-      const farmerId = generateId();
+    setTimeout(async () => {
+        if (otp === "123456") {
+            try {
+                const farmerId = generateId();
+                const mockUserId = `sim-${phone}`; // Simulated ID for localStorage key
 
-      const userProfile: UserProfile = {
-        farmerId: farmerId,
-        name: name,
-        phone: `+91${phone}`,
-        avatar: `https://picsum.photos/seed/${farmerId}/100/100`,
-        farmSize: "",
-        city: "",
-        state: "",
-        annualIncome: "",
-        language: language,
-        age: "",
-        dob: "",
-        gender: "",
-        userType: 'farmer',
-      };
+                const userProfile: UserProfile = {
+                    farmerId: farmerId,
+                    name: name,
+                    phone: `+91${phone}`,
+                    avatar: `https://picsum.photos/seed/${farmerId}/100/100`,
+                    farmSize: "",
+                    city: "",
+                    state: "",
+                    annualIncome: "",
+                    language: language,
+                    age: "",
+                    dob: "",
+                    gender: "",
+                    userType: 'farmer',
+                };
+                
+                await setUserProfile(mockUserId, userProfile);
+                localStorage.setItem("userProfile", JSON.stringify(userProfile));
+                
+                addWelcomeNotification(userProfile.name, language);
 
-      await setUserProfile(user.uid, userProfile);
-      localStorage.setItem("userProfile", JSON.stringify(userProfile));
-      
-      addWelcomeNotification(userProfile.name, language);
-
-      toast({
-        title: t.signup.welcomeTitle(name),
-        description: t.signup.welcomeDesc,
-      });
-
-      router.push("/profile");
-    
-    } catch (error) {
-        console.error("Signup error:", error);
-        toast({
-          variant: "destructive",
-          title: t.signup.invalidOtpTitle,
-          description: "The OTP you entered is incorrect or has expired.",
-        });
-        setLoading(false);
-    }
+                toast({
+                    title: t.signup.welcomeTitle(name),
+                    description: t.signup.welcomeDesc,
+                });
+                router.push("/profile");
+            
+            } catch (error) {
+                console.error("Signup error:", error);
+                toast({
+                    variant: "destructive",
+                    title: t.signup.signupFailedTitle,
+                    description: t.signup.signupFailedDesc,
+                });
+                setLoading(false);
+            }
+        } else {
+            toast({
+                variant: "destructive",
+                title: t.signup.invalidOtpTitle,
+                description: t.signup.invalidOtpDesc,
+            });
+            setLoading(false);
+        }
+    }, 1000);
   };
 
   if (!isLoaded) {
