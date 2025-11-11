@@ -112,7 +112,7 @@ const initialPostsData: Post[] = [
 // --- LocalStorage Posts Service (Simulation) ---
 
 // Helper to get posts from localStorage
-const getStoredPosts = (): Post[] => {
+export const getStoredPosts = (): Post[] => {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(POSTS_STORAGE_KEY);
     
@@ -134,32 +134,26 @@ const setStoredPosts = (posts: Post[]) => {
 
 /**
  * Fetches all posts from storage.
- * Simulates an async database call.
  */
-export const getPosts = async (): Promise<Post[]> => {
+export const getPosts = (): Post[] => {
     const posts = getStoredPosts();
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 100));
     return posts.sort((a, b) => b.id - a.id); // Sort by most recent
 };
 
 /**
  * Adds a new post to storage.
- * Simulates an async database call.
  */
-export const addPost = async (newPost: Post): Promise<Post> => {
+export const addPost = (newPost: Post): Post => {
     const posts = getStoredPosts();
     const updatedPosts = [newPost, ...posts];
     setStoredPosts(updatedPosts);
-    await new Promise(resolve => setTimeout(resolve, 100));
     return newPost;
 };
 
 /**
  * Updates a post in storage (e.g., for likes or comments).
- * Simulates an async database call.
  */
-export const updatePost = async (postId: number, updates: Partial<Post>): Promise<Post | null> => {
+export const updatePost = (postId: number, updates: Partial<Post>): Post | null => {
     const posts = getStoredPosts();
     const postIndex = posts.findIndex(p => p.id === postId);
 
@@ -172,6 +166,5 @@ export const updatePost = async (postId: number, updates: Partial<Post>): Promis
     posts[postIndex] = updatedPost;
     setStoredPosts(posts);
 
-    await new Promise(resolve => setTimeout(resolve, 50));
     return updatedPost;
 };

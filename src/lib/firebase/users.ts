@@ -83,6 +83,14 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 };
 
 /**
+ * Retrieves all user profiles.
+ * @returns An array of all user profiles.
+ */
+export const getUsers = async (): Promise<UserProfile[]> => {
+    return Promise.resolve(Object.values(userProfiles));
+}
+
+/**
  * Updates a user's profile.
  * Simulates Firestore 'update' but uses localStorage.
  * @param userId The user's simulated authentication ID (e.g., sim-9876543210).

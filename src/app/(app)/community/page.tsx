@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/use-translation";
 import type { UserProfile as AppUserProfile } from "@/lib/firebase/users";
 import { useGroups } from "@/hooks/use-groups";
-import { getPosts, addPost, updatePost, type Post, type Comment } from "@/lib/firebase/posts";
+import { getStoredPosts, addPost, updatePost, type Post, type Comment } from "@/lib/firebase/posts";
 
 
 const allCitiesList = Object.values(indianCities).flat();
@@ -729,22 +729,23 @@ export default function CommunityPage() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    const fetchPosts = async () => {
+    const fetchPostsAndProfile = async () => {
         setIsLoadingPosts(true);
-        const storedPosts = await getPosts();
+        const storedPosts = getStoredPosts();
         setPosts(storedPosts);
         setIsLoadingPosts(false);
+
+        const profile = localStorage.getItem('userProfile');
+        if (profile) {
+            setUserProfile(JSON.parse(profile));
+        }
     };
     
-    fetchPosts();
+    fetchPostsAndProfile();
 
-    const profile = localStorage.getItem('userProfile');
-    if (profile) {
-        setUserProfile(JSON.parse(profile));
-    }
-    
     const handleStorageChange = () => {
-        fetchPosts();
+        const storedPosts = getStoredPosts();
+        setPosts(storedPosts);
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -780,7 +781,7 @@ export default function CommunityPage() {
 
   const handleNewPost = async (newPost: Post) => {
     await addPost(newPost);
-    const updatedPosts = await getPosts();
+    const updatedPosts = getStoredPosts();
     setPosts(updatedPosts);
   };
   
@@ -788,7 +789,7 @@ export default function CommunityPage() {
     const post = posts.find(p => p.id === postId);
     if (post) {
         await updatePost(postId, { likes: post.likes + 1 });
-        const updatedPosts = await getPosts();
+        const updatedPosts = getStoredPosts();
         setPosts(updatedPosts);
         if (selectedPost && selectedPost.id === postId) {
             setSelectedPost(prev => prev ? { ...prev, likes: prev.likes + 1 } : null);
@@ -801,7 +802,7 @@ export default function CommunityPage() {
      if (post) {
         const updatedComments = [...post.comments, newComment];
         await updatePost(postId, { comments: updatedComments });
-        const updatedPosts = await getPosts();
+        const updatedPosts = getStoredPosts();
         setPosts(updatedPosts);
         if (selectedPost && selectedPost.id === postId) {
             setSelectedPost(prev => prev ? { ...prev, comments: updatedComments } : null);

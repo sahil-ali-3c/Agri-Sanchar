@@ -3,61 +3,128 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { AreaChart, BarChart, Bell, FileText, Users, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { getUsers, UserProfile } from "@/lib/firebase/users";
+import { getStoredPosts } from "@/lib/firebase/posts";
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboardPage() {
-    const router = useRouter();
+    const [stats, setStats] = useState({ users: 0, posts: 0 });
+    const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
 
-    const handleLogout = () => {
-        localStorage.removeItem("userProfile");
-        router.push("/admin/login");
-    };
+    useEffect(() => {
+        const fetchStats = async () => {
+            const allUsers = await getUsers();
+            const allPosts = getStoredPosts();
+            setStats({ users: allUsers.length, posts: allPosts.length });
+
+            // Simulate user growth data
+             const growthData = [
+                { name: 'Jan', users: 120 },
+                { name: 'Feb', users: 150 },
+                { name: 'Mar', users: 210 },
+                { name: 'Apr', users: 250 },
+                { name: 'May', users: 310 },
+                { name: 'Jun', users: allUsers.length },
+            ];
+            setUserGrowthData(growthData);
+        };
+        fetchStats();
+    }, []);
+
+    const overviewCards = [
+        {
+            title: "Manage Users",
+            href: "/admin/users",
+            icon: Users,
+            description: "View, verify, or suspend users.",
+            value: `${stats.users} Total Users`
+        },
+        {
+            title: "Analytics",
+            href: "/admin/analytics",
+            icon: AreaChart,
+            description: "See user growth and content trends.",
+            value: "View Reports"
+        },
+        {
+            title: "Content Management",
+            href: "/community",
+            icon: FileText,
+            description: "Moderate community posts and queries.",
+            value: `${stats.posts} Total Posts`
+        },
+        {
+            title: "Send Notification",
+            href: "/admin/notifications",
+            icon: Bell,
+            description: "Broadcast alerts to all users.",
+            value: "New Alert"
+        }
+    ];
 
     return (
         <div className="p-4 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
-                <Button variant="outline" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" /> Logout
-                </Button>
-            </div>
+            <h1 className="text-3xl font-bold font-headline mb-6">Admin Dashboard</h1>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>Welcome, Admin!</CardTitle>
-                    <CardDescription>This is the central hub for managing the Agri-Sanchar application.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p>From here, you will be able to manage users, view analytics, and oversee content. More features will be added here soon.</p>
-                </CardContent>
-            </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                {overviewCards.map((card) => (
+                    <Card key={card.title} className="hover:shadow-lg transition-shadow">
+                        <Link href={card.href}>
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                                <card.icon className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{card.value}</div>
+                                <p className="text-xs text-muted-foreground">{card.description}</p>
+                            </CardContent>
+                        </Link>
+                    </Card>
+                ))}
+            </div>
 
-            {/* Placeholder for future admin components */}
-            <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="border-dashed">
-                     <CardHeader>
-                        <CardTitle>User Management</CardTitle>
-                     </CardHeader>
-                     <CardContent>
-                        <p className="text-muted-foreground">Coming soon...</p>
-                     </CardContent>
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>User Growth</CardTitle>
+                        <CardDescription>Total users over the last 6 months.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={userGrowthData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="users" fill="hsl(var(--primary))" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
                 </Card>
-                 <Card className="border-dashed">
-                     <CardHeader>
-                        <CardTitle>App Analytics</CardTitle>
-                     </CardHeader>
-                     <CardContent>
-                        <p className="text-muted-foreground">Coming soon...</p>
-                     </CardContent>
-                </Card>
-                 <Card className="border-dashed">
-                     <CardHeader>
-                        <CardTitle>Content Moderation</CardTitle>
-                     </CardHeader>
-                     <CardContent>
-                        <p className="text-muted-foreground">Coming soon...</p>
-                     </CardContent>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                        <CardDescription>Common administrative tasks.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <Button asChild variant="outline">
+                            <Link href="/admin/users">View All Users</Link>
+                        </Button>
+                         <Button asChild variant="outline">
+                            <Link href="/admin/notifications">Send Global Alert</Link>
+                        </Button>
+                         <Button asChild variant="outline">
+                            <Link href="/admin/analytics">Full Analytics</Link>
+                        </Button>
+                         <Button asChild variant="outline">
+                            <Link href="/profile">My Admin Profile</Link>
+                        </Button>
+                    </CardContent>
                 </Card>
             </div>
         </div>
