@@ -18,8 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslation } from "@/hooks/use-translation";
 import { setUserProfile, type UserProfile } from "@/lib/firebase/users";
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, UserCredential } from "firebase/auth";
+import { useAuth } from "@/firebase/provider";
 
-const SIMULATED_OTP = "123456";
 
 const addWelcomeNotification = (name: string, lang: 'English' | 'Hindi') => {
     const newNotification = {
@@ -48,11 +49,13 @@ const generateId = () => {
 export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const { t, language, setLanguage, isLoaded } = useTranslation();
 
   useEffect(() => {
@@ -66,42 +69,51 @@ export default function SignupPage() {
     }
   }, [isLoaded, setLanguage]);
 
+  useEffect(() => {
+    if (auth && !window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+      });
+    }
+  }, [auth]);
+
   const handleSendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || !auth) return;
     setLoading(true);
 
-    // Simulate sending OTP
-    setTimeout(() => {
-        setOtpSent(true);
+    try {
+      const phoneNumber = `+91${phone}`;
+      const appVerifier = window.recaptchaVerifier;
+      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      
+      setConfirmationResult(result);
+      setOtpSent(true);
+      toast({
+        title: t.signup.otpSentTitle,
+        description: "A real OTP has been sent to your phone.",
+      });
+    } catch (error) {
+        console.error("Error sending OTP:", error);
         toast({
-            title: t.signup.otpSentTitle,
-            description: t.signup.otpSentDesc,
+            variant: "destructive",
+            title: "OTP Send Failed",
+            description: "Could not send OTP. The phone number might already be in use or invalid.",
         });
+    } finally {
         setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || !confirmationResult) return;
     setLoading(true);
 
-    if (otp !== SIMULATED_OTP) {
-        toast({
-          variant: "destructive",
-          title: t.signup.invalidOtpTitle,
-          description: t.signup.invalidOtpDesc,
-        });
-        setLoading(false);
-        return;
-    }
-    
     try {
-      // Simulate creating a user. Use phone number to create a unique-ish ID for demo purposes.
-      const mockUserId = `sim-${phone}`;
+      const credential: UserCredential = await confirmationResult.confirm(otp);
+      const user = credential.user;
       const farmerId = generateId();
-
 
       const userProfile: UserProfile = {
         farmerId: farmerId,
@@ -119,7 +131,7 @@ export default function SignupPage() {
         userType: 'farmer',
       };
 
-      await setUserProfile(mockUserId, userProfile);
+      await setUserProfile(user.uid, userProfile);
       localStorage.setItem("userProfile", JSON.stringify(userProfile));
       
       addWelcomeNotification(userProfile.name, language);
@@ -132,11 +144,11 @@ export default function SignupPage() {
       router.push("/profile");
     
     } catch (error) {
-        console.error("Simulated signup error:", error);
+        console.error("Signup error:", error);
         toast({
           variant: "destructive",
-          title: t.signup.signupFailedTitle,
-          description: t.signup.signupFailedDesc,
+          title: t.signup.invalidOtpTitle,
+          description: "The OTP you entered is incorrect or has expired.",
         });
         setLoading(false);
     }
@@ -202,7 +214,7 @@ export default function SignupPage() {
               <Input
                 id="otp"
                 type="tel"
-                placeholder={t.signup.otpPlaceholder}
+                placeholder="Enter 6-digit OTP"
                 required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').substring(0, 6))}

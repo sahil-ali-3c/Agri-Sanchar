@@ -26,17 +26,17 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/use-translation";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { useAuth } from "@/firebase/provider";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const auth = useAuth();
   const { t } = useTranslation();
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       localStorage.removeItem("userProfile");
       localStorage.removeItem("selectedLanguage");
       router.push("/");

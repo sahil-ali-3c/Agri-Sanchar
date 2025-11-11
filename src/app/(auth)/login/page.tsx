@@ -18,8 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useTranslation } from "@/hooks/use-translation";
 import { getUserProfile } from "@/lib/firebase/users";
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { useAuth } from "@/firebase/provider";
 
-const SIMULATED_OTP = "123456";
 
 const addWelcomeNotification = (name: string, lang: 'English' | 'Hindi') => {
     const welcomeMessage = lang === 'Hindi' ? `वापसी पर स्वागत है, ${name}!` : `Welcome back, ${name}!`;
@@ -49,83 +50,97 @@ export default function LoginPage({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const { t, language, isLoaded } = useTranslation();
+
+   useEffect(() => {
+    if (auth) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+      });
+    }
+  }, [auth]);
   
   const handleSendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || !auth) return;
     setLoading(true);
 
-    // Simulate sending OTP
-    setTimeout(() => {
+    try {
+      const phoneNumber = `+91${phone}`;
+      const appVerifier = window.recaptchaVerifier;
+      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      
+      setConfirmationResult(result);
       setOtpSent(true);
       toast({
         title: t.login.otpSentTitle,
-        description: t.login.otpSentDesc,
+        description: "A real OTP has been sent to your phone.",
       });
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      toast({
+        variant: "destructive",
+        title: "OTP Send Failed",
+        description: "Could not send OTP. Please check the phone number or try again.",
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (loading) return;
+    if (loading || !confirmationResult) return;
     setLoading(true);
 
-    if (otp !== SIMULATED_OTP) {
-        toast({
-            variant: "destructive",
-            title: t.login.invalidOtpTitle,
-            description: t.login.invalidOtpDesc,
-        });
-        setLoading(false);
-        return;
-    }
-
     try {
-        const mockUserId = `sim-${phone}`; 
-        const userProfile = await getUserProfile(mockUserId);
+      const credential = await confirmationResult.confirm(otp);
+      const user = credential.user;
+
+      const userProfile = await getUserProfile(user.uid);
         
-        if (!userProfile) {
-            toast({
-                variant: "destructive",
-                title: t.login.loginFailedTitle,
-                description: t.login.loginFailedDesc
-            });
-            setLoading(false);
-            router.push('/signup');
-            return;
-        }
+      if (!userProfile) {
+          toast({
+              variant: "destructive",
+              title: t.login.loginFailedTitle,
+              description: t.login.loginFailedDesc
+          });
+          setLoading(false);
+          router.push('/signup');
+          return;
+      }
 
-        userProfile.language = language;
-        localStorage.setItem('userProfile', JSON.stringify(userProfile));
+      userProfile.language = language;
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
 
-        addWelcomeNotification(userProfile.name, language);
+      addWelcomeNotification(userProfile.name, language);
 
-        toast({
-            title: t.login.loginSuccess,
-            description: t.login.welcomeBack(userProfile.name),
-        });
+      toast({
+          title: t.login.loginSuccess,
+          description: t.login.welcomeBack(userProfile.name),
+      });
 
-        const redirectUrl = searchParams.redirect;
+      const redirectUrl = searchParams.redirect;
 
-        if (redirectUrl && typeof redirectUrl === 'string') {
-            router.push(redirectUrl);
-        } else if (userProfile.state && userProfile.city) {
-            router.push("/dashboard");
-        } else {
-            router.push("/profile");
-        }
+      if (redirectUrl && typeof redirectUrl === 'string') {
+          router.push(redirectUrl);
+      } else if (userProfile.state && userProfile.city) {
+          router.push("/dashboard");
+      } else {
+          router.push("/profile");
+      }
     } catch (error) {
         console.error("Login error:", error);
         toast({
           variant: "destructive",
-          title: t.login.errorTitle,
-          description: t.login.errorDesc,
+          title: t.login.invalidOtpTitle,
+          description: "The OTP you entered is incorrect or has expired.",
         });
         setLoading(false);
     }
@@ -150,7 +165,6 @@ export default function LoginPage({
           ) : (
             <>
               <p>{t.login.enterPhone}</p>
-              <p>{t.login.phoneTestHint}</p>
             </>
           )}
         </CardDescription>
@@ -187,7 +201,7 @@ export default function LoginPage({
               <Input
                 id="otp"
                 type="tel"
-                placeholder={t.login.otpPlaceholder}
+                placeholder="Enter 6-digit OTP"
                 required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').substring(0, 6))}

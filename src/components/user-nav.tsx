@@ -21,11 +21,10 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Languages, LogOut, User } from "lucide-react";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/use-translation";
+import { useAuth } from "@/firebase/provider";
 
 type UserProfile = {
   name: string;
@@ -36,6 +35,7 @@ type UserProfile = {
 
 export function UserNav() {
   const router = useRouter();
+  const auth = useAuth();
   const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { t, setLanguage } = useTranslation();
@@ -76,7 +76,7 @@ export function UserNav() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       localStorage.removeItem("userProfile");
       localStorage.removeItem("selectedLanguage");
       router.push("/");

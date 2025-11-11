@@ -12,6 +12,9 @@ import {
 import { NotificationProvider } from "@/context/notification-context";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useUser } from "@/firebase/provider";
+import { Spinner } from "@/components/ui/spinner";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 
 function ProfileCompletionGuard({ children }: { children: React.ReactNode }) {
@@ -49,8 +52,11 @@ function ProfileCompletionGuard({ children }: { children: React.ReactNode }) {
   }, [pathname, router]);
 
   if (isChecking) {
-    // You can return a loading spinner here if you want
-    return null; 
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Spinner className="h-8 w-8" />
+        </div>
+    );
   }
 
 
@@ -58,23 +64,50 @@ function ProfileCompletionGuard({ children }: { children: React.ReactNode }) {
 }
 
 
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace(`/login?redirect=${pathname}`);
+    }
+  }, [isUserLoading, user, router, pathname]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <NotificationProvider>
-      <ProfileCompletionGuard>
-        <SidebarProvider>
-          <Sidebar collapsible="icon">
-            <AppSidebar />
-          </Sidebar>
-          <div className="md:hidden">
-            <BottomNav />
-          </div>
-          <SidebarInset>
-            <AppHeader />
-            <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
-          </SidebarInset>
-        </SidebarProvider>
-      </ProfileCompletionGuard>
-    </NotificationProvider>
+    <FirebaseClientProvider>
+        <NotificationProvider>
+        <AuthGuard>
+            <ProfileCompletionGuard>
+                <SidebarProvider>
+                <Sidebar collapsible="icon">
+                    <AppSidebar />
+                </Sidebar>
+                <div className="md:hidden">
+                    <BottomNav />
+                </div>
+                <SidebarInset>
+                    <AppHeader />
+                    <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+                </SidebarInset>
+                </SidebarProvider>
+            </ProfileCompletionGuard>
+        </AuthGuard>
+        </NotificationProvider>
+    </FirebaseClientProvider>
   );
 }
