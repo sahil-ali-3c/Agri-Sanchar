@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -118,6 +119,11 @@ export default function AdminLoginPage() {
           </Button>
         </form>
       </CardContent>
+       <CardFooter>
+        <p className="text-xs text-muted-foreground mx-auto">
+          Hint: Use <code className="font-mono bg-muted p-1 rounded-sm">admin@example.com</code> and <code className="font-mono bg-muted p-1 rounded-sm">admin123</code>
+        </p>
+      </CardFooter>
     </Card>
   );
 }
