@@ -31,8 +31,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/use-translation";
-import { auth } from "@/lib/firebase";
-import { updateUserProfile, type UserProfile } from "@/lib/firebase/users";
+import { updateUserProfile, type UserProfile, setUserProfile } from "@/lib/firebase/users";
 import { Spinner } from "@/components/ui/spinner";
 
 const generateId = (type: 'farmer' | 'expert' | 'ngo' = 'farmer') => {
@@ -58,6 +57,7 @@ export default function ProfilePage() {
 
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("userProfile");
@@ -80,6 +80,7 @@ export default function ProfilePage() {
     } else {
         router.push('/login');
     }
+    setIsLoading(false);
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,8 +158,8 @@ export default function ProfilePage() {
     setIsEditing(false);
     
     try {
-      const mockUserId = `sim-${profile.phone.replace('+91', '')}`;
-      await updateUserProfile(mockUserId, profile);
+      // Use setUserProfile to both create and update, ensuring the key is the phone number
+      await setUserProfile(profile.phone.replace('+91', ''), profile);
       localStorage.setItem("userProfile", JSON.stringify(profile));
       
       localStorage.removeItem('selectedLanguage');
@@ -189,7 +190,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!profile) {
+  if (isLoading || !profile) {
       return (
           <div className="flex justify-center items-start py-8">
               <Spinner />
