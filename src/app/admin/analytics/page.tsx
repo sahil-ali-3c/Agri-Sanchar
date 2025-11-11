@@ -4,7 +4,7 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from 'react';
-import { getUsers, UserProfile } from "@/lib/firebase/users";
+import { getUsers } from "@/lib/firebase/users";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -16,7 +16,7 @@ export default function AdminAnalyticsPage() {
         const fetchData = async () => {
             const allUsers = await getUsers();
             
-            // Process data for charts
+            // Process data for distribution chart
             const distribution = allUsers.reduce((acc, user) => {
                 const state = user.state || "Unknown";
                 const existing = acc.find(item => item.name === state);
@@ -29,12 +29,13 @@ export default function AdminAnalyticsPage() {
             }, [] as {name: string, value: number}[]);
             setUserDistribution(distribution);
 
+            // Process data for growth chart
             const growthData = [
-                { name: 'Jan', users: 120 },
-                { name: 'Feb', users: 150 },
-                { name: 'Mar', users: 210 },
-                { name: 'Apr', users: 250 },
-                { name: 'May', users: 310 },
+                { name: 'Jan', users: Math.max(0, allUsers.length - 50) },
+                { name: 'Feb', users: Math.max(0, allUsers.length - 40) },
+                { name: 'Mar', users: Math.max(0, allUsers.length - 30) },
+                { name: 'Apr', users: Math.max(0, allUsers.length - 20) },
+                { name: 'May', users: Math.max(0, allUsers.length - 10) },
                 { name: 'Jun', users: allUsers.length },
             ];
             setUserGrowth(growthData);

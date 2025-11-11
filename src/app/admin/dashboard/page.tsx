@@ -3,11 +3,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AreaChart, Bell, FileText, Users, TrendingUp } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { AreaChart, Bell, FileText, Users } from "lucide-react";
 import Link from 'next/link';
 import { useEffect, useState } from "react";
-import { getUsers, UserProfile } from "@/lib/firebase/users";
+import { getUsers } from "@/lib/firebase/users";
 import { getStoredPosts } from "@/lib/firebase/posts";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -21,13 +20,13 @@ export default function AdminDashboardPage() {
             const allPosts = getStoredPosts();
             setStats({ users: allUsers.length, posts: allPosts.length });
 
-            // Simulate user growth data
-             const growthData = [
-                { name: 'Jan', users: 120 },
-                { name: 'Feb', users: 150 },
-                { name: 'Mar', users: 210 },
-                { name: 'Apr', users: 250 },
-                { name: 'May', users: 310 },
+            // Simulate user growth data ending with the real total
+            const growthData = [
+                { name: 'Jan', users: Math.max(0, allUsers.length - 50) },
+                { name: 'Feb', users: Math.max(0, allUsers.length - 40) },
+                { name: 'Mar', users: Math.max(0, allUsers.length - 30) },
+                { name: 'Apr', users: Math.max(0, allUsers.length - 20) },
+                { name: 'May', users: Math.max(0, allUsers.length - 10) },
                 { name: 'Jun', users: allUsers.length },
             ];
             setUserGrowthData(growthData);
