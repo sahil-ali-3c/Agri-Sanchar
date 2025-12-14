@@ -155,12 +155,14 @@ export default function MarketPricesPage() {
 
   }, [isLoaded]);
 
-  const fetchPrices = async (city: string | null) => {
+  const fetchPrices = async (city: string | null, isRetry = false) => {
     setIsLoading(true);
     setPrices(null);
     setError(null);
     setDataSource(null);
-    setIsAllIndia(city === null);
+    
+    const isAllIndiaQuery = city === null;
+    setIsAllIndia(isAllIndiaQuery && !isRetry);
 
     const locationName = city || t.market.allIndia;
 
@@ -179,7 +181,6 @@ export default function MarketPricesPage() {
         setPrices(pricesWithAvailability); 
         setDataSource({ type: 'live' });
 
-        // Save to cache if a specific city was queried
         if (city) {
             localStorage.setItem(`market_prices_${city}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
         }
@@ -189,27 +190,31 @@ export default function MarketPricesPage() {
           description: t.market.notification.loaded(locationName),
         });
 
-      } else if (response.answer === 'NO_DATA_FOUND') {
+      } else {
+          
+        if (isAllIndiaQuery && !isRetry) {
+            fetchPrices("Ludhiana", true); // Retry with a default city
+            return;
+        }
         
-        // Attempt to load from cache if it's a city query
         if (city) {
             const cachedDataString = localStorage.getItem(`market_prices_${city}`);
             if (cachedDataString) {
                 const cachedData: CachedPriceData = JSON.parse(cachedDataString);
                 setPrices(cachedData.data);
                 setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
-                return; // Exit here, no error state needed
+                setIsLoading(false);
+                return;
             }
         }
-        // If no cache or not a city query, then show no data error
-        setError(t.market.error.noData(locationName));
+        
+        if (response.answer === 'API_KEY_MISSING') {
+            setError('API_KEY_MISSING');
+        } else {
+            setError(t.market.error.noData(locationName));
+        }
         setPrices([]);
 
-      } else if (response.answer === 'API_KEY_MISSING') {
-        setError('API_KEY_MISSING');
-        setPrices([]);
-      } else {
-        setError(t.market.error.fetchFailed(locationName));
       }
     } catch (e: any) {
       console.error(e);
@@ -219,7 +224,10 @@ export default function MarketPricesPage() {
         setError("An unexpected error occurred.");
       }
     } finally {
-        setIsLoading(false);
+        // Only stop loading if it's not a retry that will trigger another fetch
+        if (!(isAllIndiaQuery && !isRetry && !prices)) {
+             setIsLoading(false);
+        }
     }
   };
 
@@ -514,5 +522,3 @@ export default function MarketPricesPage() {
     </div>
   );
 }
-
-    
