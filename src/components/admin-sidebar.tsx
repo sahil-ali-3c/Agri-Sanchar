@@ -11,7 +11,8 @@ import {
   Home,
   FileText,
   Settings,
-  Leaf
+  Leaf,
+  Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +29,7 @@ export function AdminSidebar() {
     { href: "/admin/dashboard", label: "Dashboard", icon: Home },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/analytics", label: "Analytics", icon: AreaChart },
+    { href: "/admin/database-viewer", label: "Database Viewer", icon: Database },
     { href: "/admin/notifications", label: "Notifications", icon: Bell },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
