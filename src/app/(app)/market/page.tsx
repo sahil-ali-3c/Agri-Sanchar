@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/table";
 import { indianStates } from "@/lib/indian-states";
 import { indianCities } from "@/lib/indian-cities";
-import { TrendingUp, MapPin, KeyRound, Leaf, Lightbulb, ShoppingCart, Award, Building, Phone, MessageSquare, Briefcase, IndianRupee, ArrowDown, ArrowUp, Minus, Package } from "lucide-react";
+import { TrendingUp, MapPin, KeyRound, Leaf, Lightbulb, ShoppingCart, Award, Building, Phone, MessageSquare, Briefcase, IndianRupee, ArrowDown, ArrowUp, Minus, Package, History } from "lucide-react";
 import { answerFarmerQuestion } from "@/ai/flows/answer-farmer-question";
 import { Badge } from "@/components/ui/badge";
 import type { PriceRecord } from "@/ai/types";
@@ -43,9 +43,15 @@ import type { UserProfile } from "@/lib/firebase/users";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { format } from 'date-fns';
 
 
 type CombinedPriceData = PriceRecord & { availability?: number };
+type CachedPriceData = {
+    timestamp: number;
+    data: CombinedPriceData[];
+};
+
 
 const buyerData = [
     {
@@ -110,6 +116,8 @@ export default function MarketPricesPage() {
   const [prices, setPrices] = useState<CombinedPriceData[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<{type: 'live' | 'cached', timestamp?: number} | null>(null);
+
   const { addNotification } = useNotifications();
   const [isAllIndia, setIsAllIndia] = useState(true);
   const { t, isLoaded } = useTranslation();
@@ -151,6 +159,7 @@ export default function MarketPricesPage() {
     setIsLoading(true);
     setPrices(null);
     setError(null);
+    setDataSource(null);
     setIsAllIndia(city === null);
 
     const locationName = city || t.market.allIndia;
@@ -168,13 +177,34 @@ export default function MarketPricesPage() {
             availability: Math.floor(Math.random() * 80) + 20
         }));
         setPrices(pricesWithAvailability); 
+        setDataSource({ type: 'live' });
+
+        // Save to cache if a specific city was queried
+        if (city) {
+            localStorage.setItem(`market_prices_${city}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
+        }
+
          addNotification({
           title: t.market.notification.updated,
           description: t.market.notification.loaded(locationName),
         });
+
       } else if (response.answer === 'NO_DATA_FOUND') {
+        
+        // Attempt to load from cache if it's a city query
+        if (city) {
+            const cachedDataString = localStorage.getItem(`market_prices_${city}`);
+            if (cachedDataString) {
+                const cachedData: CachedPriceData = JSON.parse(cachedDataString);
+                setPrices(cachedData.data);
+                setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
+                return; // Exit here, no error state needed
+            }
+        }
+        // If no cache or not a city query, then show no data error
         setError(t.market.error.noData(locationName));
         setPrices([]);
+
       } else if (response.answer === 'API_KEY_MISSING') {
         setError('API_KEY_MISSING');
         setPrices([]);
@@ -366,6 +396,17 @@ export default function MarketPricesPage() {
                         <p className="ml-2 text-muted-foreground">{t.market.fetching}</p>
                     </div>
                     )}
+                    
+                    {dataSource?.type === 'cached' && dataSource.timestamp && (
+                        <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200">
+                             <History className="h-4 w-4 !text-amber-700" />
+                            <AlertTitle className="text-amber-800">Showing Cached Data</AlertTitle>
+                            <AlertDescription className="text-amber-700">
+                                Live data is currently unavailable. Displaying prices from {format(new Date(dataSource.timestamp), "PPP p")}.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {error && error === 'API_KEY_MISSING' ? (
                         <Alert variant="destructive">
                             <KeyRound className="h-4 w-4" />
@@ -473,3 +514,5 @@ export default function MarketPricesPage() {
     </div>
   );
 }
+
+    
