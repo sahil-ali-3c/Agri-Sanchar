@@ -44,6 +44,19 @@ const MandiPriceOutputSchema = z.object({
   error: z.string().optional(),
 });
 
+const getAiMandiPricesPrompt = ai.definePrompt({
+    name: 'getAiMandiPricesPrompt',
+    input: { schema: z.object({ city: z.string() }) },
+    output: { schema: MandiPriceOutputSchema },
+    prompt: `You are an expert agricultural market analyst. Provide a list of estimated current mandi (market) prices for 10 common agricultural commodities for the given city in India. The commodities should be relevant to the region.
+The output must be in the requested JSON format. The 'modal_price' should be a number as a string.
+
+City: {{{city}}}
+Commodities examples: Wheat, Paddy, Cotton, Maize, Tomato, Potato, Onion, Soybean, Gram, Mustard.
+`,
+});
+
+
 const getMandiPrices = ai.defineTool(
   {
     name: 'getMandiPrices',
@@ -72,6 +85,15 @@ const getMandiPrices = ai.defineTool(
       const data = await response.json();
 
       if (!data.records || data.records.length === 0) {
+        if (city) {
+            console.log(`No data found for ${city} from data.gov.in, falling back to AI.`);
+            const { output } = await getAiMandiPricesPrompt({ city });
+            if (output?.records) {
+                // Add the market key to each record for consistency
+                const recordsWithMarket = output.records.map(rec => ({...rec, market: city}));
+                return { records: recordsWithMarket };
+            }
+        }
         return { error: `NO_DATA_FOUND` };
       }
 
@@ -84,7 +106,14 @@ const getMandiPrices = ai.defineTool(
       return { records: priceRecords };
 
     } catch (error) {
-      console.error('Error fetching mandi prices:', error);
+        console.error('Error fetching mandi prices from data.gov.in, falling back to AI:', error);
+        if (city) {
+             const { output } = await getAiMandiPricesPrompt({ city });
+             if (output?.records) {
+                 const recordsWithMarket = output.records.map(rec => ({...rec, market: city}));
+                 return { records: recordsWithMarket };
+             }
+        }
       return { error: `FETCH_FAILED` };
     }
   }
