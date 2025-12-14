@@ -322,7 +322,8 @@ export default function ChatbotPage() {
       const availableVoices = window.speechSynthesis.getVoices();
       if (availableVoices.length > 0) {
         setVoices(availableVoices);
-        window.speechSynthesis.onvoiceschanged = null; // Important: remove listener after getting voices
+        // Important: remove listener after getting voices
+        window.speechSynthesis.onvoiceschanged = null;
       }
     };
     
@@ -339,15 +340,9 @@ export default function ChatbotPage() {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
-        recognitionRef.current = null;
       }
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
-        if (utteranceRef.current) {
-            utteranceRef.current.onerror = null;
-        }
-         // Clean up the event listener
-        window.speechSynthesis.onvoiceschanged = null;
       }
     };
 
@@ -365,20 +360,6 @@ export default function ChatbotPage() {
         return;
     }
 
-    // This is a fallback. If voices aren't loaded, wait for the event and retry.
-    if (voices.length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-             const availableVoices = window.speechSynthesis.getVoices();
-             setVoices(availableVoices);
-             // Important: Retry speaking after voices are loaded
-             if(availableVoices.length > 0) {
-                 speak(message);
-             }
-        };
-        toast({ variant: 'destructive', title: "Speech Error", description: "No voices available for text-to-speech." });
-        return;
-    }
-
     if (nowPlayingMessageId === message.id) {
       window.speechSynthesis.cancel();
       setNowPlayingMessageId(null);
@@ -393,15 +374,25 @@ export default function ChatbotPage() {
     const targetLang = isHindi ? 'hi-IN' : 'en-US';
     utterance.lang = targetLang;
 
-    // Smart voice selection: Prefer Google voices, but fall back to any available voice for the language.
-    const voice = voices.find(v => v.lang === targetLang && v.name.includes('Google')) 
-               || voices.find(v => v.lang === targetLang);
-
-    if (voice) {
-      utterance.voice = voice;
+    // Smart voice selection: Prefer Google voices, fall back to any available voice for the language.
+    let selectedVoice = null;
+    if (targetLang === 'hi-IN') {
+        selectedVoice = voices.find(voice => voice.lang === 'hi-IN' && voice.name.includes('Google')) 
+                     || voices.find(voice => voice.lang === 'hi-IN');
+    } else { // 'en-US' or other english variants
+        selectedVoice = voices.find(voice => voice.lang.startsWith('en-') && voice.name.includes('Google')) 
+                     || voices.find(voice => voice.lang.startsWith('en-'));
+    }
+    
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+    } else if (voices.length > 0) {
+        console.warn(`No specific voice found for ${targetLang}. Using first available voice.`);
+        utterance.voice = voices[0];
     } else {
-        // If no specific voice is found, we let the browser choose the best default for the lang.
-        console.warn(`No specific voice found for ${targetLang}. Using browser default.`);
+        console.error("No voices available for text-to-speech.");
+        toast({ variant: 'destructive', title: t.chatbot.speechError, description: "No voices available." });
+        return;
     }
     
     utterance.onstart = () => setNowPlayingMessageId(message.id);
@@ -413,6 +404,7 @@ export default function ChatbotPage() {
         }
         setNowPlayingMessageId(null);
     }
+    
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
   };
