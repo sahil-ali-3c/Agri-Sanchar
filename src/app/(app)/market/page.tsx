@@ -139,7 +139,7 @@ export default function MarketPricesPage() {
         const cities = indianCities[userState] || [];
         setAvailableCities(cities);
         setSelectedState(userState);
-        if (parsedProfile.city && availableCities.includes(parsedProfile.city)) {
+        if (parsedProfile.city && cities.includes(parsedProfile.city)) {
             setSelectedCity(parsedProfile.city);
             initialCity = parsedProfile.city;
             setIsAllIndia(false);
@@ -161,9 +161,7 @@ export default function MarketPricesPage() {
     setError(null);
     setDataSource(null);
 
-    const isAllIndiaQuery = city === null;
-    setIsAllIndia(isAllIndiaQuery);
-
+    const locationKey = city || 'all_india';
     const locationName = city || t.market.allIndia;
 
     try {
@@ -180,43 +178,36 @@ export default function MarketPricesPage() {
             }));
             setPrices(pricesWithAvailability);
             setDataSource({ type: 'live' });
-            if (city) {
-                localStorage.setItem(`market_prices_${city}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
-            }
+            localStorage.setItem(`market_prices_${locationKey}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
             addNotification({
                 title: t.market.notification.updated,
                 description: t.market.notification.loaded(locationName),
             });
         } else {
-            // If live data fails, try to use cache
-            if (city) {
-                const cachedDataString = localStorage.getItem(`market_prices_${city}`);
-                if (cachedDataString) {
-                    const cachedData: CachedPriceData = JSON.parse(cachedDataString);
-                    setPrices(cachedData.data);
-                    setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
-                    setIsLoading(false);
-                    return; // Exit here as we have cached data
-                }
-            }
-            
+            throw new Error(response.answer || 'No data received from API');
+        }
+    } catch (e: any) {
+        console.error("Live API fetch failed:", e);
+
+        // Fallback to cache
+        const cachedDataString = localStorage.getItem(`market_prices_${locationKey}`);
+        if (cachedDataString) {
+            const cachedData: CachedPriceData = JSON.parse(cachedDataString);
+            setPrices(cachedData.data);
+            setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
+            addNotification({ title: "Showing Cached Prices", description: `Live data unavailable for ${locationName}.`});
+        } else {
             // If no live data and no cache, set error
-             if (response.answer === 'API_KEY_MISSING') {
+             if (e.message.includes('API_KEY_MISSING')) {
                 setError('API_KEY_MISSING');
             } else {
                 setError(t.market.error.noData(locationName));
             }
             setPrices([]);
         }
-    } catch (e: any) {
-        console.error(e);
-         if (e.message.includes('FETCH_FAILED')) {
-            setError(t.market.error.fetchFailed(locationName));
-        } else {
-            setError("An unexpected error occurred.");
-        }
     } finally {
         setIsLoading(false);
+        setIsAllIndia(city === null);
     }
 };
 
