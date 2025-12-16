@@ -40,7 +40,7 @@ const addWelcomeNotification = (name: string, lang: 'English' | 'Hindi') => {
     }
 };
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -206,4 +206,14 @@ export default function LoginPage() {
       </CardContent>
     </Card>
   )
+}
+
+export default function LoginPage() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    return isClient ? <LoginForm /> : <div className="h-[450px]"><Spinner className="h-8 w-8" /></div>;
 }

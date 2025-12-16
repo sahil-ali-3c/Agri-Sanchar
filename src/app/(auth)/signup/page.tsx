@@ -42,8 +42,7 @@ const generateId = () => {
     return `AS-${part1}-${part2}`;
 };
 
-
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -217,4 +216,14 @@ export default function SignupPage() {
       </CardContent>
     </Card>
   );
+}
+
+export default function SignupPage() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    return isClient ? <SignupForm /> : <div className="h-[500px]"><Spinner className="h-8 w-8" /></div>;
 }

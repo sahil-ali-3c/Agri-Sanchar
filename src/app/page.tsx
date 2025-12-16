@@ -9,43 +9,21 @@ import { Languages } from 'lucide-react';
 import { useTranslation } from '@/hooks/use-translation';
 import { Spinner } from '@/components/ui/spinner';
 
-export default function WelcomePage() {
+function WelcomeContent() {
     const router = useRouter();
     const { t, setLanguage } = useTranslation();
-    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    useEffect(() => {
-        if (isClient) {
-            const storedLang = localStorage.getItem('selectedLanguage');
-            if (storedLang) {
-                router.push('/login');
-            }
+        const storedLang = localStorage.getItem('selectedLanguage');
+        if (storedLang) {
+            router.push('/login');
         }
-    }, [isClient, router]);
+    }, [router]);
 
     const handleLanguageSelect = (language: 'English' | 'Hindi') => {
         setLanguage(language);
         router.push('/login');
     };
-
-    if (!isClient) {
-        return (
-             <div className="relative flex min-h-screen flex-col items-center justify-center p-4 overflow-hidden"
-                 style={{
-                    backgroundImage: "url('https://cdn.pixabay.com/photo/2017/07/06/12/56/morning-2477957_1280.jpg')",
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                 }}
-            >
-                <div className="absolute inset-0 bg-black/50 -z-10" />
-                <Spinner className="h-12 w-12 text-white" />
-            </div>
-        );
-    }
 
     return (
         <div className="relative flex min-h-screen flex-col items-center justify-center p-4 overflow-hidden"
@@ -83,6 +61,28 @@ export default function WelcomePage() {
                     </Button>
                 </CardContent>
             </Card>
+        </div>
+    );
+}
+
+
+export default function WelcomePage() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    return isClient ? <WelcomeContent /> : (
+         <div className="relative flex min-h-screen flex-col items-center justify-center p-4 overflow-hidden"
+             style={{
+                backgroundImage: "url('https://cdn.pixabay.com/photo/2017/07/06/12/56/morning-2477957_1280.jpg')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+             }}
+        >
+            <div className="absolute inset-0 bg-black/50 -z-10" />
+            <Spinner className="h-12 w-12 text-white" />
         </div>
     );
 }
