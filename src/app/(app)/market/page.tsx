@@ -155,81 +155,70 @@ export default function MarketPricesPage() {
 
   }, [isLoaded]);
 
-  const fetchPrices = async (city: string | null, isRetry = false) => {
+  const fetchPrices = async (city: string | null) => {
     setIsLoading(true);
     setPrices(null);
     setError(null);
     setDataSource(null);
-    
+
     const isAllIndiaQuery = city === null;
-    setIsAllIndia(isAllIndiaQuery && !isRetry);
+    setIsAllIndia(isAllIndiaQuery);
 
     const locationName = city || t.market.allIndia;
 
     try {
-      const response = await answerFarmerQuestion({
-        question: `Get prices for ${locationName}`,
-        city: city || undefined,
-        returnJson: true,
-      });
-      
-      if (response.priceData && response.priceData.length > 0) {
-        const pricesWithAvailability: CombinedPriceData[] = response.priceData.map(p => ({
-            ...p,
-            availability: Math.floor(Math.random() * 80) + 20
-        }));
-        setPrices(pricesWithAvailability); 
-        setDataSource({ type: 'live' });
-
-        if (city) {
-            localStorage.setItem(`market_prices_${city}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
-        }
-
-         addNotification({
-          title: t.market.notification.updated,
-          description: t.market.notification.loaded(locationName),
+        const response = await answerFarmerQuestion({
+            question: `Get prices for ${locationName}`,
+            city: city || undefined,
+            returnJson: true,
         });
 
-      } else {
-          
-        if (isAllIndiaQuery && !isRetry) {
-            fetchPrices("Ludhiana", true); // Retry with a default city
-            return;
-        }
-        
-        if (city) {
-            const cachedDataString = localStorage.getItem(`market_prices_${city}`);
-            if (cachedDataString) {
-                const cachedData: CachedPriceData = JSON.parse(cachedDataString);
-                setPrices(cachedData.data);
-                setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
-                setIsLoading(false);
-                return;
+        if (response.priceData && response.priceData.length > 0) {
+            const pricesWithAvailability: CombinedPriceData[] = response.priceData.map(p => ({
+                ...p,
+                availability: Math.floor(Math.random() * 80) + 20
+            }));
+            setPrices(pricesWithAvailability);
+            setDataSource({ type: 'live' });
+            if (city) {
+                localStorage.setItem(`market_prices_${city}`, JSON.stringify({ timestamp: Date.now(), data: pricesWithAvailability }));
             }
-        }
-        
-        if (response.answer === 'API_KEY_MISSING') {
-            setError('API_KEY_MISSING');
+            addNotification({
+                title: t.market.notification.updated,
+                description: t.market.notification.loaded(locationName),
+            });
         } else {
-            setError(t.market.error.noData(locationName));
+            // If live data fails, try to use cache
+            if (city) {
+                const cachedDataString = localStorage.getItem(`market_prices_${city}`);
+                if (cachedDataString) {
+                    const cachedData: CachedPriceData = JSON.parse(cachedDataString);
+                    setPrices(cachedData.data);
+                    setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
+                    setIsLoading(false);
+                    return; // Exit here as we have cached data
+                }
+            }
+            
+            // If no live data and no cache, set error
+             if (response.answer === 'API_KEY_MISSING') {
+                setError('API_KEY_MISSING');
+            } else {
+                setError(t.market.error.noData(locationName));
+            }
+            setPrices([]);
         }
-        setPrices([]);
-
-      }
     } catch (e: any) {
-      console.error(e);
-      if (e.message.includes('FETCH_FAILED')) {
-          setError(t.market.error.fetchFailed(locationName));
-      } else {
-        setError("An unexpected error occurred.");
-      }
-    } finally {
-        // Only stop loading if it's not a retry that will trigger another fetch
-        if (!(isAllIndiaQuery && !isRetry && !prices)) {
-             setIsLoading(false);
+        console.error(e);
+         if (e.message.includes('FETCH_FAILED')) {
+            setError(t.market.error.fetchFailed(locationName));
+        } else {
+            setError("An unexpected error occurred.");
         }
+    } finally {
+        setIsLoading(false);
     }
-  };
+};
 
   const handleStateChange = (value: string) => {
     setSelectedState(value);
