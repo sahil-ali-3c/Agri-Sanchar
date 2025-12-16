@@ -52,6 +52,14 @@ type CachedPriceData = {
     data: CombinedPriceData[];
 };
 
+const samplePriceData: CombinedPriceData[] = [
+    { commodity: 'Wheat', modal_price: '2250', market: 'Ludhiana', availability: 75 },
+    { commodity: 'Paddy', modal_price: '3100', market: 'Amritsar', availability: 60 },
+    { commodity: 'Cotton', modal_price: '7200', market: 'Bathinda', availability: 45 },
+    { commodity: 'Maize', modal_price: '2050', market: 'Jalandhar', availability: 80 },
+    { commodity: 'Tomato', modal_price: '1500', market: 'Patiala', availability: 90 },
+];
+
 
 const buyerData = [
     {
@@ -116,7 +124,7 @@ export default function MarketPricesPage() {
   const [prices, setPrices] = useState<CombinedPriceData[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<{type: 'live' | 'cached', timestamp?: number} | null>(null);
+  const [dataSource, setDataSource] = useState<{type: 'live' | 'cached' | 'sample', timestamp?: number} | null>(null);
 
   const { addNotification } = useNotifications();
   const [isAllIndia, setIsAllIndia] = useState(true);
@@ -184,12 +192,21 @@ export default function MarketPricesPage() {
                 description: t.market.notification.loaded(locationName),
             });
         } else {
-            throw new Error(response.answer || 'No data received from API');
+            // This case handles AI failure or empty API response
+            const cachedDataString = localStorage.getItem(`market_prices_${locationKey}`);
+            if (cachedDataString) {
+                const cachedData: CachedPriceData = JSON.parse(cachedDataString);
+                setPrices(cachedData.data);
+                setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
+                addNotification({ title: "Showing Cached Prices", description: `Live data unavailable for ${locationName}.`});
+            } else {
+                 setError(response.answer || t.market.error.noData(locationName));
+                 setPrices(samplePriceData);
+                 setDataSource({ type: 'sample' });
+            }
         }
     } catch (e: any) {
         console.error("Live API fetch failed:", e);
-
-        // Fallback to cache
         const cachedDataString = localStorage.getItem(`market_prices_${locationKey}`);
         if (cachedDataString) {
             const cachedData: CachedPriceData = JSON.parse(cachedDataString);
@@ -197,13 +214,13 @@ export default function MarketPricesPage() {
             setDataSource({ type: 'cached', timestamp: cachedData.timestamp });
             addNotification({ title: "Showing Cached Prices", description: `Live data unavailable for ${locationName}.`});
         } else {
-            // If no live data and no cache, set error
-             if (e.message.includes('API_KEY_MISSING')) {
+            if (e.message.includes('API_KEY_MISSING')) {
                 setError('API_KEY_MISSING');
             } else {
-                setError(t.market.error.noData(locationName));
+                 setError(t.market.error.noData(locationName));
             }
-            setPrices([]);
+            setPrices(samplePriceData);
+            setDataSource({ type: 'sample' });
         }
     } finally {
         setIsLoading(false);
@@ -394,6 +411,14 @@ export default function MarketPricesPage() {
                             </AlertDescription>
                         </Alert>
                     )}
+                     {dataSource?.type === 'sample' && (
+                        <Alert variant="destructive" className="mb-4">
+                            <AlertTitle>Displaying Sample Data</AlertTitle>
+                            <AlertDescription>
+                                Could not fetch live or cached market prices. Showing sample data as a demonstration.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
                     {error && error === 'API_KEY_MISSING' ? (
                         <Alert variant="destructive">
@@ -404,12 +429,13 @@ export default function MarketPricesPage() {
                                 <pre className="mt-2 rounded-md bg-muted p-2 text-xs">GOV_DATA_API_KEY=YOUR_API_KEY_HERE</pre>
                             </AlertDescription>
                         </Alert>
-                    ) : error && (
+                    ) : error && !prices?.length ? (
                     <div className="text-center py-8 text-destructive">
                         <p>{error}</p>
                     </div>
-                    )}
-                    {!isLoading && !error && prices && prices.length > 0 && (
+                    ) : null}
+
+                    {!isLoading && prices && prices.length > 0 && (
                     <Table>
                         <TableHeader>
                         <TableRow>
@@ -502,3 +528,5 @@ export default function MarketPricesPage() {
     </div>
   );
 }
+
+    
