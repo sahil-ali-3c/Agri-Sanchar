@@ -75,10 +75,12 @@ export default function WeatherPage() {
 
                 if (forecast.error) {
                     setError(forecast.error);
-                    addNotification({
-                        title: t.weather.notification.unavailable,
-                        description: forecast.error,
-                    });
+                    if (!forecast.error.includes("API key")) {
+                        addNotification({
+                            title: t.weather.notification.unavailable,
+                            description: forecast.error,
+                        });
+                    }
                 } else {
                     setWeatherData(forecast);
                     addNotification({
